@@ -226,10 +226,10 @@ def main(
                 famly_downloader.download_images_from_notes(child_id, first_name)
 
         if liked:
-            famly_downloader.download_images_from_feed(parent_ids)
+            famly_downloader.download_images_from_feed(liked_by_ids=parent_ids)
 
         if feed:
-            famly_downloader.download_all_images_from_feed()
+            famly_downloader.download_images_from_feed()
 
     except Exception as e:
         click.secho(f"An exception occurred: {e}", fg="red")
