@@ -1,10 +1,43 @@
 import hashlib
 import json
+import time
+import urllib.error
 import urllib.parse
 import urllib.request
 import uuid
 
 from importlib_resources import files
+
+
+def urlopen_with_backoff(req, attempts=5, base_delay=2.0, max_delay=60.0):
+    """
+    urllib.request.urlopen with retries for throttling and transient failures.
+
+    Retries on HTTP 429, HTTP 5xx, and network-level URLError, sleeping with
+    exponential backoff (base_delay * 2^attempt, capped at max_delay) between
+    tries. A Retry-After header, when the server sends one, overrides the
+    computed delay. Any other HTTP error, and the final failed attempt,
+    raises as usual.
+    """
+    for attempt in range(attempts):
+        try:
+            return urllib.request.urlopen(req)
+        except urllib.error.HTTPError as e:
+            if e.code != 429 and e.code < 500:
+                raise
+            error = e
+            retry_after = e.headers.get("Retry-After")
+        except urllib.error.URLError as e:
+            error = e
+            retry_after = None
+        if attempt == attempts - 1:
+            raise error
+        try:
+            delay = min(float(retry_after), max_delay)
+        except (TypeError, ValueError):
+            delay = min(base_delay * 2**attempt, max_delay)
+        print(f"Request failed ({error}), retrying in {delay:.0f}s...")
+        time.sleep(delay)
 
 
 def get_device_id() -> str:
@@ -150,7 +183,7 @@ class ApiClient:
 
         req = urllib.request.Request(url=url, headers=headers, method=method, data=b)
         try:
-            with urllib.request.urlopen(req) as f:
+            with urlopen_with_backoff(req) as f:
                 body = f.read().decode("utf-8")
                 if f.status != 200:
                     raise Exception(f"Broken! {body}")

@@ -22,7 +22,7 @@ import click
 import piexif
 import piexif.helper
 
-from famly_fetch.api_client import ApiClient
+from famly_fetch.api_client import ApiClient, urlopen_with_backoff
 from famly_fetch.file import File
 from famly_fetch.image import BaseImage, Image, SecretImage
 from famly_fetch.video import Video
@@ -527,7 +527,7 @@ class FamlyDownloader:
         """Stream a URL to disk. Used for non-image attachments where EXIF
         injection doesn't apply."""
         req = urllib.request.Request(url=url)
-        with urllib.request.urlopen(req) as r, open(file_path, "wb") as f:
+        with urlopen_with_backoff(req) as r, open(file_path, "wb") as f:
             if r.status != 200:
                 raise Exception(f"Broken! {r.read().decode('utf-8')}")
             shutil.copyfileobj(r, f)
@@ -563,7 +563,7 @@ class FamlyDownloader:
         else:
             timezone_offset = None
 
-        with urllib.request.urlopen(req) as r, open(file_path, "wb") as f:
+        with urlopen_with_backoff(req) as r, open(file_path, "wb") as f:
             if r.status != 200:
                 raise Exception(f"Broken! {r.read().decode('utf-8')}")
             shutil.copyfileobj(r, f)
