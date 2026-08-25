@@ -99,8 +99,10 @@ the folder where you run this program from.
 
 By default, it will only download images where you have tagged your child. The
 date that the photo was taken is embedded in its metadata and in its title.
-For journey, notes and messages, the associated text is also added as an exif
-comment unless disabled with `--no-text-comments`.
+For journey, notes and messages, the associated text is also added to the
+EXIF `UserComment` and `ImageDescription` fields unless disabled with
+`--no-text-comments`. `ImageDescription` is the field photo managers such
+as Immich read as the picture description.
 
 The images have been stripped for any metadata including EXIF
 information by Famly. You can optionally add GPS coordinates to the EXIF
