@@ -9,12 +9,12 @@ import uuid
 from importlib_resources import files
 
 
-def urlopen_with_backoff(req, attempts=5, base_delay=2.0, max_delay=60.0):
+def urlopen_with_backoff(req, attempts=5):
     """
     urllib.request.urlopen with retries for throttling and transient failures.
 
     Retries on HTTP 429, HTTP 5xx, and network-level URLError, sleeping with
-    exponential backoff (base_delay * 2^attempt, capped at max_delay) between
+    exponential backoff (2s doubling per attempt, capped at 60s) between
     tries. A Retry-After header, when the server sends one, overrides the
     computed delay. Any other HTTP error, and the final failed attempt,
     raises as usual.
@@ -33,9 +33,9 @@ def urlopen_with_backoff(req, attempts=5, base_delay=2.0, max_delay=60.0):
         if attempt == attempts - 1:
             raise error
         try:
-            delay = min(float(retry_after), max_delay)
+            delay = max(0.0, min(float(retry_after), 60.0))
         except (TypeError, ValueError):
-            delay = min(base_delay * 2**attempt, max_delay)
+            delay = min(2.0 * 2**attempt, 60.0)
         print(f"Request failed ({error}), retrying in {delay:.0f}s...")
         time.sleep(delay)
 
