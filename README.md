@@ -16,7 +16,7 @@ to test them before submitting them.**
 To run the project locally from source:
 
 ```bash
-git clone https://github.com/ileodo/famly-fetch.git
+git clone https://github.com/jacobbunk/famly-fetch.git
 cd famly-fetch
 python -m venv .venv
 ```

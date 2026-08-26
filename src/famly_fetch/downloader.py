@@ -301,11 +301,21 @@ class FamlyDownloader:
                         return
         self.save_state()
 
-    def download_images_from_feed(self, liked_by_ids: set[str]):
-        click.secho("Downloading liked images in posts...", fg="green")
+    def download_images_from_feed(
+        self,
+        liked_by_ids: set[str] | None = None,
+        batch_size=20,
+        batch_pause=10,
+    ):
+        download_liked_only = liked_by_ids is not None
+        if download_liked_only:
+            click.secho("Downloading liked images from feed posts...", fg="green")
+        else:
+            click.secho("Downloading all images from feed posts...", fg="green")
 
         cursor = None
         older_than = None
+        batch_count = 0
         while True:
             click.echo("Fetching next 10 Posts")
             response = self._apiClient.feed(
@@ -322,13 +332,8 @@ class FamlyDownloader:
                     continue
                 create_date = feed_item["createdDate"]
                 for img_dict in feed_item["images"]:
-                    if not (
-                        img_dict["liked"]
-                        or [
-                            like
-                            for like in img_dict["likes"]
-                            if like["loginId"] in liked_by_ids
-                        ]
+                    if download_liked_only and not self._is_liked_feed_image(
+                        img_dict, liked_by_ids
                     ):
                         # not liked by parents
                         continue
@@ -351,75 +356,15 @@ class FamlyDownloader:
                     file_path = self.download_file_path(img, "post")
                     self.fetch_image(img, file_path)
                     self.mark_as_downloaded(img.img_id)
-
-                feed_text = feed_item.get("body") if self.text_comments else None
-                if self.include_files:
-                    if self._download_files_from_item(
-                        feed_item.get("files") or [],
-                        date=create_date,
-                        text=feed_text,
-                        filename_prefix="post",
-                    ):
-                        return
-                if self.include_videos:
-                    if self._download_videos_from_item(
-                        feed_item.get("videos") or [],
-                        date=create_date,
-                        text=feed_text,
-                        filename_prefix="post",
-                    ):
-                        return
-
-        self.save_state()
-
-    def download_all_images_from_feed(self, batch_size=20, batch_pause=10):
-        click.secho("Downloading all images from feed posts...", fg="green")
-
-        cursor = None
-        older_than = None
-        batch_count = 0
-        while True:
-            click.echo("Fetching next 10 Posts")
-            response = self._apiClient.feed(
-                cursor=cursor, older_than=older_than, limit=10
-            )
-            if not response["feedItems"]:
-                break
-            last_item = response["feedItems"][-1]
-            cursor = last_item["feedItemId"]
-            older_than = last_item["createdDate"]
-            for feed_item in response["feedItems"]:
-                if not feed_item["originatorId"].startswith("Post:"):
-                    continue
-                create_date = feed_item["createdDate"]
-                for img_dict in feed_item["images"]:
-                    img = Image.from_dict(
-                        img_dict,
-                        date_override=create_date,
-                        text_override=feed_item["body"] if self.text_comments else None,
-                    )
-                    click.echo(f" - image {img.img_id} from post at {create_date}")
-
-                    if img.img_id in self.downloaded_images:
-                        click.secho(
-                            f"Image {img.img_id} already downloaded, {'stopping download' if self.stop_on_existing else 'skipping'}.",
-                            fg="yellow",
-                        )
-                        if self.stop_on_existing:
-                            return
-                        else:
-                            continue
-                    file_path = self.download_file_path(img, "post")
-                    self.fetch_image(img, file_path)
-                    self.mark_as_downloaded(img.img_id)
                     self.save_state()
-                    batch_count += 1
-                    if batch_count % batch_size == 0:
-                        click.secho(
-                            f"Downloaded {batch_count} images, pausing {batch_pause}s...",
-                            fg="cyan",
-                        )
-                        time.sleep(batch_pause)
+                    if not download_liked_only:
+                        batch_count += 1
+                        if batch_count % batch_size == 0:
+                            click.secho(
+                                f"Downloaded {batch_count} images, pausing {batch_pause}s...",
+                                fg="cyan",
+                            )
+                            time.sleep(batch_pause)
 
                 feed_text = feed_item.get("body") if self.text_comments else None
                 if self.include_files:
@@ -438,6 +383,14 @@ class FamlyDownloader:
                         filename_prefix="post",
                     ):
                         return
+
+    def _is_liked_feed_image(
+        self, img_dict: dict, liked_by_ids: set[str] | None
+    ) -> bool:
+        return img_dict["liked"] or any(
+            liked_by_ids is not None and like["loginId"] in liked_by_ids
+            for like in img_dict["likes"]
+        )
 
     def _download_files_from_item(
         self,
