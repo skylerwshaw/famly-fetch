@@ -590,6 +590,11 @@ class FamlyDownloader:
             exif_dict["Exif"][piexif.ExifIFD.UserComment] = (
                 piexif.helper.UserComment.dump(img.text, encoding="unicode")
             )
+            # Also write ImageDescription: photo managers like Immich read
+            # the description from ImageDescription, not UserComment.
+            exif_dict["0th"] = {
+                piexif.ImageIFD.ImageDescription: img.text.encode("utf-8")
+            }
 
         # Add GPS data if latitude and longitude are provided
         if self.latitude is not None and self.longitude is not None:
