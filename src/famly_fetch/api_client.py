@@ -76,6 +76,11 @@ class ApiClient:
         self._access_token = access_token
         self._base = base_url
 
+    @property
+    def access_token(self) -> str | None:
+        """The access token in use, whether passed in or obtained by login()."""
+        return self._access_token
+
     def login(self, email, password):
         """
         Authenticate with the Famly API and store the access token for future requests.
